@@ -1,0 +1,40 @@
+name: Quick Test Run
+
+on:
+  workflow_dispatch: # Allow manual trigger
+  push:
+    paths:
+      - 'ConsoleApp1/**'
+      - '.github/workflows/**'
+
+jobs:
+  quick-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET 9
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Setup Chrome
+      uses: browser-actions/setup-chrome@v1
+    
+    - name: Setup ChromeDriver
+      uses: nanasess/setup-chromedriver@v2
+    
+    - name: Restore and Build
+      run: |
+        cd ConsoleApp1
+        dotnet restore
+        dotnet build --no-restore
+    
+    - name: Run Tests
+      run: |
+        cd ConsoleApp1
+        dotnet test --no-build --logger "console;verbosity=detailed"
+      env:
+        DISPLAY: :99

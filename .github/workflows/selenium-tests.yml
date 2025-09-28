@@ -1,0 +1,96 @@
+name: Selenium Tests CI/CD
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        dotnet-version: ['9.0.x']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ matrix.dotnet-version }}
+    
+    - name: Setup Chrome
+      uses: browser-actions/setup-chrome@v1
+      with:
+        chrome-version: stable
+    
+    - name: Setup ChromeDriver
+      uses: nanasess/setup-chromedriver@v2
+    
+    - name: Display Chrome version
+      run: google-chrome --version
+    
+    - name: Display ChromeDriver version
+      run: chromedriver --version
+    
+    - name: Restore dependencies
+      run: dotnet restore ConsoleApp1/ConsoleApp1.csproj
+    
+    - name: Build
+      run: dotnet build ConsoleApp1/ConsoleApp1.csproj --no-restore
+    
+    - name: Run Selenium Tests
+      run: dotnet test ConsoleApp1/ConsoleApp1.csproj --no-build --verbosity normal --logger trx --results-directory ./TestResults
+      env:
+        # Ensure headless mode works in CI environment
+        DISPLAY: :99
+    
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: ./TestResults/*.trx
+    
+    - name: Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Selenium Test Results
+        path: './TestResults/*.trx'
+        reporter: dotnet-trx
+        fail-on-error: true
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore ConsoleApp1/ConsoleApp1.csproj
+    
+    - name: Build Release
+      run: dotnet build ConsoleApp1/ConsoleApp1.csproj --configuration Release --no-restore
+    
+    - name: Publish Application
+      run: dotnet publish ConsoleApp1/ConsoleApp1.csproj --configuration Release --no-build --output ./publish
+    
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: published-app
+        path: ./publish/
