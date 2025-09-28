@@ -5,9 +5,13 @@ on:
     branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
-  schedule:
-    # Run tests daily at 2 AM UTC
-    - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+  pull-requests: write
+  statuses: write
 
 jobs:
   test:
@@ -66,6 +70,7 @@ jobs:
         path: './TestResults/*.trx'
         reporter: dotnet-trx
         fail-on-error: true
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
     needs: test
